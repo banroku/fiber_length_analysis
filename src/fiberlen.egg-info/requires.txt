@@ -1,0 +1,6 @@
+numpy>=1.23
+imageio>=2.31
+tifffile>=2023.7.10
+scikit-image>=0.21
+matplotlib>=3.7
+streamlit>=1.31
