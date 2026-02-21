@@ -74,13 +74,14 @@ def measure_length(graph: CompressedGraph, top_cut: int) -> List[Fiber]:
                 and getattr(graph.segments[s], "kind", SegmentKind.SEGMENT) == SegmentKind.SEGMENT
                 and getattr(graph.segments[s], "length_px", None) is not None
             )
+            - top_cut * 2  # 繊維両末端が長めに計測される分を削る
         )
 
     fibers.sort(key=lambda x: x.length_px, reverse=True)
 
-    tc = int(top_cut)
-    if tc > 0:
-        fibers = fibers[:tc]
+#    tc = int(top_cut)  # 誤った実装。挙動が問題なければ削除する
+#    if tc > 0:
+#        fibers = fibers[:tc]
 
     return fibers
 

@@ -44,7 +44,8 @@ class Config:
     pairing_length_for_calc_angle: int = 12   # 角度計算のためノードから離れる距離(px)
 
     # ---- measure_length ----
-    top_cut: int = 0  # 0以下なら全件、>0なら上位N本だけ返す
+
+    top_cut: int = 1  # スケルトナイズにより実際より長く両端をカットする
 
     # ---- postprocess ----
     post_eliminate_length_px: float = 5 # 最終的に短い繊維を除外する閾値(px)
