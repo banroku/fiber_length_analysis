@@ -31,17 +31,17 @@ class Config:
     border_margin_px: int = 3  # 画像端の繊維を測定対象から外す境界幅
 
     # ---- merge_nodes ----
-    merge_short_seg_px: int = 3  # ノード間の距離がこれ以下なら、単一のノードとみなす
+    merge_short_seg_px: int = 4  # ノード間の距離がこれ以下なら、単一のノードとみなす
 
     # ---- kink_cut ----
-    threshold_of_nonlinear: float = 1.20  # L/D がこれより大なら非直線セグメント候補
-    blob_px: int = 7                    # 曲率評価のサンプル間隔
+    threshold_of_nonlinear: float = 1.2  # L/D がこれより大なら非直線セグメント候補
+    blob_px: int = 5                    # 曲率評価のサンプル間隔
     cut_max: int = 2                     # キンク分割の最大回数（これ超えたらそのセグメントは削除）
     cut_angle: float = 15.0              # ここ(°)を超える折れ曲がりをキンクとみなす
 
     # ---- pairing ----
     pairing_angle_max: float = 25.0           # 折れ曲がり角(°)がこれ以下なら「直進」と判定してペア
-    pairing_length_for_calc_angle: int = 12   # 角度計算のためノードから離れる距離(px)
+    pairing_length_for_calc_angle: int = 5   # 角度計算のためノードから離れる距離(px)
 
     # ---- measure_length ----
 

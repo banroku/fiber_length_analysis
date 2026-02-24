@@ -1,5 +1,4 @@
 /data/
-/app/
 /document/
 *.odt
 *.ods
@@ -7,6 +6,7 @@
 *.tiff
 *.png
 *.jpg
+*.zip
 
 ################################
 # Secrets / credentials
