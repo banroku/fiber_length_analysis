@@ -74,11 +74,21 @@ def fibers_to_lengths_um(fibers, um_per_px: float) -> np.ndarray:
     return np.array([float(f.length_px) * float(um_per_px) for f in fibers], dtype=float)
 
 
-def compute_upper(img_path: str, background_is_dark: bool, blur_sigma_px: float):
+def compute_upper(  #★eliminate_length_px移行を分離しないと、ノイズたっぷりの時にフリーズしかねない→ボタンで実行式にする（後で）
+    img_path: str,
+    background_is_dark: bool,
+    blur_sigma_px: float,
+    threshold_manual: float,
+    eliminate_length_px: int,
+):
     img_raw01 = input_img(img_path, background_is_dark)
     img_pre01 = subtract_background(img_raw01, blur_sigma_px)
+    img_bin = binarize(img_pre01, float(threshold_manual))
+    img_for_skel = noize_elimination(img_bin, int(eliminate_length_px))
+    img_skel = skeletonize(img_for_skel)
     thr_otsu = float(calc_Otsu_threshold(img_pre01))
-    return img_pre01, thr_otsu
+
+    return img_raw01, img_pre01, img_bin, img_for_skel, img_skel, thr_otsu
 
 
 def compute_binarized(img_pre01: np.ndarray, threshold: float):
@@ -86,13 +96,14 @@ def compute_binarized(img_pre01: np.ndarray, threshold: float):
 
 
 def compute_lower_and_save(
-    img_pre01: np.ndarray,
-    threshold_manual: float,
-    threshold_otsu: float,
+#    img_pre01: np.ndarray,
+    img_skel: np.ndarray,
+#    threshold_manual: float,
+#    threshold_otsu: float,
     *,
     tag: str,
     um_per_px: float,
-    eliminate_length_px: int,
+#    eliminate_length_px: int,
     border_margin_px: int,
     merge_short_seg_px: int,
     threshold_of_nonlinear: float,
@@ -107,9 +118,9 @@ def compute_lower_and_save(
     out_dir = ROOT / "data" / "output"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    img_bin = binarize(img_pre01, float(threshold_manual))
-    img_for_skel = noize_elimination(img_bin, int(eliminate_length_px))
-    img_skel = skeletonize(img_for_skel)
+#    img_bin = binarize(img_pre01, float(threshold_manual))
+#    img_for_skel = noize_elimination(img_bin, int(eliminate_length_px))
+#    img_skel = skeletonize(img_for_skel)
 
     graph = convert_to_graph(img_skel, int(border_margin_px))
 
@@ -171,6 +182,7 @@ def compute_lower_and_save(
 
     return dict(
         out_dir=str(out_dir),
+        img_for_skel=img_for_skel,
         img_skel=img_skel,
         paired_tif=str(paired_tif_path),
         fibers_total=int(len(fibers)),
@@ -390,22 +402,23 @@ blank_rgb = np.zeros((800, 800, 3), dtype=np.uint8)
 
 st.subheader("1st step: preprocess -> binarize")
 u1, u2 = st.columns(2)
+
 with u1:
-    st.write("Preprocessed (background subtracted)")
-    disp_img_01_ph = st.image(blank_gray)
+    st.write("Original")
+    disp_img_01 = st.image(blank_gray)
 with u2:
-    st.write("Binarized")
-    disp_img_02_ph= st.image(blank_gray)
+    st.write("Background subtracted")
+    disp_img_02 = st.image(blank_gray)
 
 st.markdown("---")
 
 u1, u2 = st.columns(2)
 with u1:
-    st.write("test1")
-    middle_test1_ph = st.image(blank_gray)
+    st.write("Binarized")
+    disp_img_03 = st.image(blank_gray)
 with u2:
-    st.write("test2")
-    middle_test2_ph = st.image(blank_gray)
+    st.write("Preprocessed (noise elimination, closing)")
+    disp_img_04 = st.image(blank_gray)
 
 st.markdown("---")
 
@@ -413,10 +426,10 @@ st.subheader("2nd step (skeletonize -> results)")
 l1, l2 = st.columns(2)
 with l1:
     st.write("Skeletonized")
-    lower_skel_ph = st.image(blank_gray)
+    disp_img_05 = st.image(blank_gray)
 with l2:
     st.write("draw_separated_fiber_img output")
-    lower_paired_ph = st.image(blank_rgb)
+    disp_img_06 = st.image(blank_rgb)
 
 st.markdown("---")
 
@@ -460,7 +473,8 @@ if st.session_state.file_id != file_id:
 # ----------------------------
 # Upper compute (auto-update)
 # ----------------------------
-img_pre01, threshold_otsu = compute_upper(str(tmp_path), background_is_dark, blur_sigma_px)
+img_raw01, img_pre01, img_bin, img_for_skel, img_skel, threshold_otsu  = compute_upper(str(tmp_path), background_is_dark, blur_sigma_px, threshold_manual, eliminate_length_px)
+
 
 threshold_otsu_line_ph.write(f"threshold_otsu (recommended): {threshold_otsu:.3f}")
 
@@ -473,20 +487,23 @@ threshold_manual = float(st.session_state.threshold_manual)
 
 img_bin = compute_binarized(img_pre01, threshold_manual)
 
-disp_img_01.image(crop_center(img_pre01, 800), clamp=True)
-disp_img_02.image(crop_center((img_bin.astype(np.uint8) * 255), 800))
+disp_img_01.image(crop_center(img_raw01, 800))
+disp_img_02.image(crop_center(img_pre01, 800), clamp=True)
+disp_img_03.image(crop_center((img_bin.astype(np.uint8) * 255), 800))
+disp_img_04.image(crop_center((img_for_skel.astype(np.uint8) * 255), 800))
 
 # ----------------------------
 # Lower compute only on button; placeholders exist from startup
 # ----------------------------
 if run_lower_button:
     st.session_state.lower_cache = compute_lower_and_save(
-        img_pre01,
-        threshold_manual,
-        threshold_otsu,
+        #img_pre01,
+        img_skel,
+        #threshold_manual,
+        #threshold_otsu,
         tag=tag,
         um_per_px=um_per_px,
-        eliminate_length_px=eliminate_length_px,
+        #eliminate_length_px=eliminate_length_px,
         border_margin_px=border_margin_px,
         merge_short_seg_px=merge_short_seg_px,
         threshold_of_nonlinear=threshold_of_nonlinear,
@@ -520,11 +537,14 @@ if res is None:
     plt.close(fig)
 
 else:
+    for_sk = res["img_for_skel"]
+    disp_img_04.image(crop_center((for_sk.astype(np.uint8) * 255), 800))
+
     sk = res["img_skel"]
-    lower_skel_ph.image(crop_center((sk.astype(np.uint8) * 255), 800))
+    disp_img_05.image(crop_center((sk.astype(np.uint8) * 255), 800))
 
     img_paired = iio.imread(res["paired_tif"])
-    lower_paired_ph.image(crop_center(img_paired, 800))
+    disp_img_06.image(crop_center(img_paired, 800))
 
     lengths_all = fibers_to_lengths_um(res["fibers_filtered"], um_per_px=float(um_per_px))
     r0, r1 = float(hist_min_um), float(hist_max_um)
