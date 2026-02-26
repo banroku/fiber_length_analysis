@@ -537,12 +537,14 @@ if res_middle is None:
     disp_img_05 = st.image(blank_rgb)
     
 else:
+
     img_for_skel = res_middle["img_for_skel"]
     disp_img_04.image(crop_center((img_for_skel.astype(np.uint8) * 255), 800))
 
     img_skel = res_middle["img_skel"]
     disp_img_05.image(crop_center((img_skel.astype(np.uint8) * 255), 800))
 
+    disp_img_06 = st.image(blank_gray)
 
 # ----------------------------
 # Render lower outputs (or keep placeholders if not run yet)
