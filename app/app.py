@@ -392,10 +392,20 @@ st.subheader("1st step: preprocess -> binarize")
 u1, u2 = st.columns(2)
 with u1:
     st.write("Preprocessed (background subtracted)")
-    upper_pre_ph = st.image(blank_gray)
+    disp_img_01_ph = st.image(blank_gray)
 with u2:
     st.write("Binarized")
-    upper_bin_ph = st.image(blank_gray)
+    disp_img_02_ph= st.image(blank_gray)
+
+st.markdown("---")
+
+u1, u2 = st.columns(2)
+with u1:
+    st.write("test1")
+    middle_test1_ph = st.image(blank_gray)
+with u2:
+    st.write("test2")
+    middle_test2_ph = st.image(blank_gray)
 
 st.markdown("---")
 
@@ -463,8 +473,8 @@ threshold_manual = float(st.session_state.threshold_manual)
 
 img_bin = compute_binarized(img_pre01, threshold_manual)
 
-upper_pre_ph.image(crop_center(img_pre01, 800), clamp=True)
-upper_bin_ph.image(crop_center((img_bin.astype(np.uint8) * 255), 800))
+disp_img_01.image(crop_center(img_pre01, 800), clamp=True)
+disp_img_02.image(crop_center((img_bin.astype(np.uint8) * 255), 800))
 
 # ----------------------------
 # Lower compute only on button; placeholders exist from startup

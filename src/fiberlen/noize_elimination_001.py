@@ -4,8 +4,7 @@ from __future__ import annotations
 
 # import matplotlib.pyplot as plt
 import numpy as np
-# from skimage.morphology import remove_small_objects
-from skimage.morphology import remove_small_objects, binary_closing, disk
+from skimage.morphology import remove_small_objects
 
 
 def noize_elimination(img_binarized: np.ndarray, eliminate_length: int) -> np.ndarray:
@@ -41,12 +40,6 @@ def noize_elimination(img_binarized: np.ndarray, eliminate_length: int) -> np.nd
 #    if bw.dtype != np.bool_:
 #        bw = bw != 0
     bw = img_binarized
-
-#     # 追加：隙間埋め（クロージング）
-#     close_radius = 4  # ★後で引数に追加する
-#     r = int(close_radius)
-#     if r > 0:
-#         bw = binary_closing(bw, footprint=disk(r))
 
     elim = int(eliminate_length)
     if elim <= 0:
