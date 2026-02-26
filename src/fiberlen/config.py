@@ -29,6 +29,9 @@ class Config:
 
     # ---- convert_to_graph ----
     border_margin_px: int = 3  # 画像端の繊維を測定対象から外す境界幅
+    
+    # ---- trim_graph ----
+    trim_length_px: int = 5  # これより短い枝は削除する
 
     # ---- merge_nodes ----
     merge_short_seg_px: int = 4  # ノード間の距離がこれ以下なら、単一のノードとみなす

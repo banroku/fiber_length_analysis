@@ -22,7 +22,6 @@ from fiberlen.calc_otsu_threshold import calc_Otsu_threshold
 from fiberlen.binarize import binarize
 from fiberlen.noize_elimination import noize_elimination
 from fiberlen.skeletonize import skeletonize
-from fiberlen.trim_graph import trim_graph 
 from fiberlen.merge_nodes import merge_nodes
 from fiberlen.convert_to_graph import convert_to_graph
 from fiberlen.kink_cut import kink_cut
@@ -111,7 +110,6 @@ def compute_lower_and_save(
     tag: str,
     um_per_px: float,
     border_margin_px: int,
-    trim_length_px: int,
     merge_short_seg_px: int,
     threshold_of_nonlinear: float,
     blob_px: int,
@@ -126,9 +124,8 @@ def compute_lower_and_save(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     graph = convert_to_graph(img_skel, int(border_margin_px))
-    graph_trimmed = trim_graph(graph, trim_length_px) #added
 
-    graph_nodes_merged = merge_nodes(graph_trimmed, merge_short_seg_px)
+    graph_nodes_merged = merge_nodes(graph, merge_short_seg_px)
 
     seg_before = int(len(graph_nodes_merged.segments))
 
@@ -262,25 +259,6 @@ threshold_manual = float(
         disabled=sidebar_disabled,
     )
 )
-
-eliminate_length_px = int(
-    st.sidebar.number_input(
-        "**eliminate_length_px:**  \n elminate object with this px*px area before skeletonize",
-        value=int(CFG.eliminate_length_px),
-        step=1,
-        disabled=sidebar_disabled,
-    )
-)
-
-trim_length_px = int(
-    st.sidebar.number_input(
-        "**trim_length_px:**  \n trim short branch less than this px",
-        value=int(CFG.trim_length_px),
-        step=1,
-        disabled=sidebar_disabled,
-    )
-)
-
 if not sidebar_disabled:
     st.session_state.threshold_manual = float(threshold_manual)
 
@@ -295,6 +273,14 @@ run_lower_button = st.sidebar.button("Run analysis  \n (skeletonize -> results)"
 st.sidebar.markdown("---")
 st.sidebar.header("Parameters (skeletonize -> results)")
 
+eliminate_length_px = int(
+    st.sidebar.number_input(
+        "**eliminate_length_px:**  \n elminate object with this px*px area before skeletonize",
+        value=int(CFG.eliminate_length_px),
+        step=1,
+        disabled=sidebar_disabled,
+    )
+)
 border_margin_px = int(
     st.sidebar.number_input(
         "**border_margin_px:**  \n ignore object this px close to the edge",
@@ -530,7 +516,6 @@ if run_lower_button:
         um_per_px=um_per_px,
         #eliminate_length_px=eliminate_length_px,
         border_margin_px=border_margin_px,
-        trim_length_px=trim_length_px,
         merge_short_seg_px=merge_short_seg_px,
         threshold_of_nonlinear=threshold_of_nonlinear,
         blob_px=blob_px,
@@ -552,12 +537,12 @@ if res_middle is None:
     disp_img_05 = st.image(blank_rgb)
     
 else:
-
     img_for_skel = res_middle["img_for_skel"]
     disp_img_04.image(crop_center((img_for_skel.astype(np.uint8) * 255), 800))
 
     img_skel = res_middle["img_skel"]
     disp_img_05.image(crop_center((img_skel.astype(np.uint8) * 255), 800))
+
 
 # ----------------------------
 # Render lower outputs (or keep placeholders if not run yet)
