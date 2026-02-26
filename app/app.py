@@ -74,36 +74,41 @@ def fibers_to_lengths_um(fibers, um_per_px: float) -> np.ndarray:
     return np.array([float(f.length_px) * float(um_per_px) for f in fibers], dtype=float)
 
 
-def compute_upper(  #★eliminate_length_px移行を分離しないと、ノイズたっぷりの時にフリーズしかねない→ボタンで実行式にする（後で）
+def compute_upper(
     img_path: str,
     background_is_dark: bool,
     blur_sigma_px: float,
     threshold_manual: float,
-    eliminate_length_px: int,
 ):
     img_raw01 = input_img(img_path, background_is_dark)
     img_pre01 = subtract_background(img_raw01, blur_sigma_px)
     img_bin = binarize(img_pre01, float(threshold_manual))
-    img_for_skel = noize_elimination(img_bin, int(eliminate_length_px))
-    img_skel = skeletonize(img_for_skel)
     thr_otsu = float(calc_Otsu_threshold(img_pre01))
 
-    return img_raw01, img_pre01, img_bin, img_for_skel, img_skel, thr_otsu
+    return img_raw01, img_pre01, img_bin, thr_otsu
 
 
 def compute_binarized(img_pre01: np.ndarray, threshold: float):
     return binarize(img_pre01, float(threshold))
 
+def compute_middle_and_save(
+    img_bin: np.ndarray,
+    eliminate_length_px: int,
+):
+    img_for_skel = noize_elimination(img_bin, int(eliminate_length_px))
+    img_skel = skeletonize(img_for_skel)
+
+    return dict(
+            img_for_skel=img_for_skel,
+            img_skel=img_skel,
+    )
+
 
 def compute_lower_and_save(
-#    img_pre01: np.ndarray,
     img_skel: np.ndarray,
-#    threshold_manual: float,
-#    threshold_otsu: float,
-    *,
+    #*,
     tag: str,
     um_per_px: float,
-#    eliminate_length_px: int,
     border_margin_px: int,
     merge_short_seg_px: int,
     threshold_of_nonlinear: float,
@@ -117,10 +122,6 @@ def compute_lower_and_save(
 ):
     out_dir = ROOT / "data" / "output"
     out_dir.mkdir(parents=True, exist_ok=True)
-
-#    img_bin = binarize(img_pre01, float(threshold_manual))
-#    img_for_skel = noize_elimination(img_bin, int(eliminate_length_px))
-#    img_skel = skeletonize(img_for_skel)
 
     graph = convert_to_graph(img_skel, int(border_margin_px))
 
@@ -153,9 +154,9 @@ def compute_lower_and_save(
 
     used_cfg_payload = dict(
         um_per_px=float(um_per_px),
-        threshold_otsu_recommended=float(threshold_otsu),
-        threshold_manual=float(threshold_manual),
-        eliminate_length_px=int(eliminate_length_px),
+        #threshold_otsu_recommended=float(threshold_otsu),
+        #threshold_manual=float(threshold_manual),
+        #eliminate_length_px=int(eliminate_length_px),
         border_margin_px=int(border_margin_px),
         threshold_of_nonlinear=float(threshold_of_nonlinear),
         blob_px=int(blob_px),
@@ -182,7 +183,6 @@ def compute_lower_and_save(
 
     return dict(
         out_dir=str(out_dir),
-        img_for_skel=img_for_skel,
         img_skel=img_skel,
         paired_tif=str(paired_tif_path),
         fibers_total=int(len(fibers)),
@@ -264,6 +264,9 @@ if not sidebar_disabled:
 
 threshold_otsu_line_ph = st.sidebar.empty()
 threshold_otsu_line_ph.write("threshold_otsu: -" if sidebar_disabled else "threshold_otsu (recommended): (computing...)")
+
+st.sidebar.markdown("---")
+run_middle_button = st.sidebar.button("Run preprocess \n (noise elimination -> closing)", disabled=sidebar_disabled)
 
 st.sidebar.markdown("---")
 run_lower_button = st.sidebar.button("Run analysis  \n (skeletonize -> results)", disabled=sidebar_disabled)
@@ -468,13 +471,13 @@ if st.session_state.file_id != file_id:
     st.session_state.file_id = file_id
     st.session_state.upper_cache = None
     st.session_state.lower_cache = None
+    st.session_state.middle_cache = None
     st.session_state.threshold_manual = None
 
 # ----------------------------
 # Upper compute (auto-update)
 # ----------------------------
-img_raw01, img_pre01, img_bin, img_for_skel, img_skel, threshold_otsu  = compute_upper(str(tmp_path), background_is_dark, blur_sigma_px, threshold_manual, eliminate_length_px)
-
+img_raw01, img_pre01, img_bin, threshold_otsu  = compute_upper(str(tmp_path), background_is_dark, blur_sigma_px, threshold_manual)
 
 threshold_otsu_line_ph.write(f"threshold_otsu (recommended): {threshold_otsu:.3f}")
 
@@ -490,15 +493,23 @@ img_bin = compute_binarized(img_pre01, threshold_manual)
 disp_img_01.image(crop_center(img_raw01, 800))
 disp_img_02.image(crop_center(img_pre01, 800), clamp=True)
 disp_img_03.image(crop_center((img_bin.astype(np.uint8) * 255), 800))
-disp_img_04.image(crop_center((img_for_skel.astype(np.uint8) * 255), 800))
+#disp_img_04.image(crop_center((img_for_skel.astype(np.uint8) * 255), 800))
 
 # ----------------------------
-# Lower compute only on button; placeholders exist from startup
+# compute middle only on button; placeholders exist from startup
+# ----------------------------
+if run_middle_button:
+    st.session_state.middle_cache = compute_middle_and_save(img_bin, eliminate_length_px)
+
+res_middle = st.session_state.middle_cache
+
+# ----------------------------
+# compute lower only on button; placeholders exist from startup
 # ----------------------------
 if run_lower_button:
     st.session_state.lower_cache = compute_lower_and_save(
         #img_pre01,
-        img_skel,
+        res_middle["img_skel"], #img_skel,
         #threshold_manual,
         #threshold_otsu,
         tag=tag,
@@ -519,6 +530,21 @@ if run_lower_button:
 res = st.session_state.lower_cache
 
 # ----------------------------
+# Render middle outputs (or keep placeholders if not run yet)
+# ----------------------------
+if res_middle is None:
+    disp_img_04 = st.image(blank_gray)
+    disp_img_05 = st.image(blank_rgb)
+    
+else:
+    img_for_skel = res_middle["img_for_skel"]
+    disp_img_04.image(crop_center((img_for_skel.astype(np.uint8) * 255), 800))
+
+    img_skel = res_middle["img_skel"]
+    disp_img_05.image(crop_center((img_skel.astype(np.uint8) * 255), 800))
+
+
+# ----------------------------
 # Render lower outputs (or keep placeholders if not run yet)
 # ----------------------------
 if res is None:
@@ -537,12 +563,6 @@ if res is None:
     plt.close(fig)
 
 else:
-    for_sk = res["img_for_skel"]
-    disp_img_04.image(crop_center((for_sk.astype(np.uint8) * 255), 800))
-
-    sk = res["img_skel"]
-    disp_img_05.image(crop_center((sk.astype(np.uint8) * 255), 800))
-
     img_paired = iio.imread(res["paired_tif"])
     disp_img_06.image(crop_center(img_paired, 800))
 
