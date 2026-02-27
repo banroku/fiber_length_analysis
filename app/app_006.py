@@ -29,6 +29,7 @@ from fiberlen.kink_cut import kink_cut
 from fiberlen.pairing import pairing
 from fiberlen.measure_length import measure_length
 from fiberlen.postprocess import postprocess
+
 from fiberlen.draw_separated_fiber_img import configure_draw_output, draw_separated_fiber_img
 
 st.set_page_config(layout="wide")
@@ -73,7 +74,7 @@ def weighted_quantile(values: np.ndarray, weights: np.ndarray, q: float) -> floa
 def fibers_to_lengths_um(fibers, um_per_px: float) -> np.ndarray:
     return np.array([float(f.length_px) * float(um_per_px) for f in fibers], dtype=float)
 
-@st.cache_data
+
 def compute_upper(
     img_path: str,
     background_is_dark: bool,
@@ -228,7 +229,7 @@ um_per_px = float(
         "**um_per_px:**  \n setting scale here",
         value=float(CFG.um_per_px),
         step=0.1,
-        format="%.2f",
+        format="%.1f",
     )
 )
 
@@ -250,7 +251,7 @@ sidebar_disabled = uploaded is None
 
 threshold_manual = float(
     st.sidebar.number_input(
-        "**threshold_manual:** (0 ot 1)",
+        "threshold_manual (0..1)",
         value=float(st.session_state.threshold_manual)
         if (st.session_state.threshold_manual is not None)
         else float(CFG.threshold),
@@ -258,20 +259,16 @@ threshold_manual = float(
         min_value=0.0,
         max_value=1.0,
         format="%.2f",
-        #disabled=sidebar_disabled,
+        disabled=sidebar_disabled,
     )
 )
-
-threshold_otsu_line_ph = st.sidebar.empty()
-#threshold_otsu_line_ph.write("threshold_otsu: -" if sidebar_disabled else "threshold_otsu (recommended): (computing...)")
-threshold_otsu_line_ph.write("threshold_otsu (recommended): (computing...)")
 
 eliminate_length_px = int(
     st.sidebar.number_input(
         "**eliminate_length_px:**  \n elminate object with this px*px area before skeletonize",
         value=int(CFG.eliminate_length_px),
         step=1,
-        #disabled=sidebar_disabled,
+        disabled=sidebar_disabled,
     )
 )
 
@@ -280,27 +277,30 @@ trim_length_px = int(
         "**trim_length_px:**  \n trim short branch less than this px",
         value=int(CFG.trim_length_px),
         step=1,
-        #disabled=sidebar_disabled,
+        disabled=sidebar_disabled,
     )
 )
 
-# if not sidebar_disabled:
-#     st.session_state.threshold_manual = float(threshold_manual)
+if not sidebar_disabled:
+    st.session_state.threshold_manual = float(threshold_manual)
 
-run_middle_button = st.sidebar.button("Run preprocess  \n (noise elimination -> closing)", disabled=sidebar_disabled)
+threshold_otsu_line_ph = st.sidebar.empty()
+threshold_otsu_line_ph.write("threshold_otsu: -" if sidebar_disabled else "threshold_otsu (recommended): (computing...)")
 
 st.sidebar.markdown("---")
+run_middle_button = st.sidebar.button("Run preprocess \n (noise elimination -> closing)", disabled=sidebar_disabled)
 
-st.sidebar.header("Parameters (skeletonize -> results)")
-
+st.sidebar.markdown("---")
 run_lower_button = st.sidebar.button("Run analysis  \n (skeletonize -> results)", disabled=sidebar_disabled)
+st.sidebar.markdown("---")
+st.sidebar.header("Parameters (skeletonize -> results)")
 
 border_margin_px = int(
     st.sidebar.number_input(
         "**border_margin_px:**  \n ignore object this px close to the edge",
         value=int(CFG.border_margin_px),
         step=1,
-        #disabled=sidebar_disabled,
+        disabled=sidebar_disabled,
     )
 )
 merge_short_seg_px = int(
@@ -308,7 +308,7 @@ merge_short_seg_px = int(
         "**merge_short_seg_px:**  \n merge nodes this px close to each other",
         value=int(CFG.merge_short_seg_px),
         step=1,
-        #disabled=sidebar_disabled,
+        disabled=sidebar_disabled,
     )
 )
 
@@ -318,7 +318,7 @@ threshold_of_nonlinear = float(
         value=float(CFG.threshold_of_nonlinear),
         step=0.05 if sidebar_disabled else 0.01,
         format="%.2f",
-        #disabled=sidebar_disabled,
+        disabled=sidebar_disabled,
     )
 )
 
@@ -327,7 +327,7 @@ blob_px = int(
         "**(arm_length_px):**  \n arms length to calcuate kink angle",
         value=int(CFG.blob_px),
         step=1,
-        #disabled=sidebar_disabled,
+        disabled=sidebar_disabled,
     )
 )
 cut_max = int(
@@ -335,16 +335,16 @@ cut_max = int(
         "**(cut_max):** \n max times of kink_cut applied",
         value=int(CFG.cut_max),
         step=1,
-        #disabled=sidebar_disabled,
+        disabled=sidebar_disabled,
     )
 )
 cut_angle = float(
     st.sidebar.number_input(
         "**cut_angle:**  \n cut object at a kink over this angle in degree",
         value=float(CFG.cut_angle),
-        step=1.0 if sidebar_disabled else 1.0,
-        format="%.0f" if sidebar_disabled else "%.0f",
-        #disabled=sidebar_disabled,
+        step=1.0 if sidebar_disabled else 0.5,
+        format="%.0f" if sidebar_disabled else "%.2f",
+        disabled=sidebar_disabled,
     )
 )
 
@@ -352,9 +352,9 @@ pairing_angle_max = float(
     st.sidebar.number_input(
         "**pairing_angle_max:**  \n connect object joined below this angle in degree",
         value=float(CFG.pairing_angle_max),
-        step=1.0 if sidebar_disabled else 1.0,
-        format="%.0f" if sidebar_disabled else "%.0f",
-        #disabled=sidebar_disabled,
+        step=1.0 if sidebar_disabled else 0.5,
+        format="%.0f" if sidebar_disabled else "%.6f",
+        disabled=sidebar_disabled,
     )
 )
 pairing_length_for_calc_angle = int(
@@ -362,7 +362,7 @@ pairing_length_for_calc_angle = int(
         "**(pairing_length_for_calc_angle_px):**  \n arm length to calculate angle",
         value=int(CFG.pairing_length_for_calc_angle),
         step=1,
-        #disabled=sidebar_disabled,
+        disabled=sidebar_disabled,
     )
 )
 
@@ -371,16 +371,16 @@ top_cut = int(
         "**(top_cut_px):**  \n recude fiber length with this px at both end",
         value=int(CFG.top_cut),
         step=1,
-        #disabled=sidebar_disabled,
+        disabled=sidebar_disabled,
     )
 )
 post_eliminate_length_px = float(
     st.sidebar.number_input(
         "**post_eliminate_length_px:**  \n remove fibers less than this length from statistics",
         value=float(CFG.post_eliminate_length_px),
-        step=5.0 if sidebar_disabled else 5.0,
-        format="%.0f" if sidebar_disabled else "%.0f",
-        #disabled=sidebar_disabled,
+        step=5.0 if sidebar_disabled else 0.5,
+        format="%.0f" if sidebar_disabled else "%.6f",
+        disabled=sidebar_disabled,
     )
 )
 
@@ -389,8 +389,8 @@ hist_min_um = float(
         "**hist_range_min_um:**",
         value=float(CFG.hist_range[0]),
         step=10.0,
-        format="%.0f" if sidebar_disabled else "%.0f",
-        #disabled=sidebar_disabled,
+        format="%.0f" if sidebar_disabled else "%.6f",
+        disabled=sidebar_disabled,
     )
 )
 hist_max_um = float(
@@ -398,8 +398,8 @@ hist_max_um = float(
         "**hist_range_max_um:**",
         value=float(CFG.hist_range[1]),
         step=10.0,
-        format="%.0f" if sidebar_disabled else "%.0f",
-        #disabled=sidebar_disabled,
+        format="%.0f" if sidebar_disabled else "%.6f",
+        disabled=sidebar_disabled,
     )
 )
 hist_bins = int(
@@ -407,7 +407,7 @@ hist_bins = int(
         "**hist_bins:**",
         value=int(CFG.hist_bins),
         step=1,
-        #disabled=sidebar_disabled,
+        disabled=sidebar_disabled,
     )
 )
 
@@ -418,18 +418,24 @@ blank_gray = np.zeros((800, 800), dtype=np.uint8)
 blank_rgb = np.zeros((800, 800, 3), dtype=np.uint8)
 
 st.subheader("1st step: preprocess -> binarize")
-#u1, u2 = st.columns(2)
-u1, u2, u3 = st.columns(3)
+u1, u2 = st.columns(2)
 
 with u1:
-    st.write("Original(background subtracted)")
+    st.write("Original")
     disp_img_01 = st.image(blank_gray)
 with u2:
-    st.write("Binarized")
+    st.write("Background subtracted")
     disp_img_02 = st.image(blank_gray)
-with u3:
-    st.write("Noise eliminated")
+
+st.markdown("---")
+
+u1, u2 = st.columns(2)
+with u1:
+    st.write("Binarized")
     disp_img_03 = st.image(blank_gray)
+with u2:
+    st.write("Preprocessed (noise elimination, closing)")
+    disp_img_04 = st.image(blank_gray)
 
 st.markdown("---")
 
@@ -437,10 +443,10 @@ st.subheader("2nd step (skeletonize -> results)")
 l1, l2 = st.columns(2)
 with l1:
     st.write("Skeletonized")
-    disp_img_04 = st.image(blank_gray)
+    disp_img_05 = st.image(blank_gray)
 with l2:
     st.write("draw_separated_fiber_img output")
-    disp_img_05 = st.image(blank_rgb)
+    disp_img_06 = st.image(blank_rgb)
 
 st.markdown("---")
 
@@ -457,10 +463,10 @@ counts_ph = st.empty()
 # If no file yet: keep placeholders and stop
 # ----------------------------
 if uploaded is None:
-    #rtext_ph.text("R0\t-\nR5\t-\nR10\t-\nR20\t-\nR50\t-\nR80\t-\nR90\t-\nR95\t-\nR100\t-\nMean(length-weighted)\t-")
-    #counts_ph.text("Total fibers (measured): 0\nUsed fibers (postprocess): 0\nSplit count: 0\nPairing count: 0")
-    #hist_ph.pyplot(plt.figure())
-    #plt.close("all")
+    rtext_ph.text("R0\t-\nR5\t-\nR10\t-\nR20\t-\nR50\t-\nR80\t-\nR90\t-\nR95\t-\nR100\t-\nMean(length-weighted)\t-")
+    counts_ph.text("Total fibers (measured): 0\nUsed fibers (postprocess): 0\nSplit count: 0\nPairing count: 0")
+    hist_ph.pyplot(plt.figure())
+    plt.close("all")
     st.stop()
 
 # ----------------------------
@@ -498,8 +504,10 @@ threshold_manual = float(st.session_state.threshold_manual)
 
 img_bin = compute_binarized(img_pre01, threshold_manual)
 
-disp_img_01.image(crop_center(img_pre01, 800), clamp=True)
-disp_img_02.image(crop_center((img_bin.astype(np.uint8) * 255), 800))
+disp_img_01.image(crop_center(img_raw01, 800))
+disp_img_02.image(crop_center(img_pre01, 800), clamp=True)
+disp_img_03.image(crop_center((img_bin.astype(np.uint8) * 255), 800))
+#disp_img_04.image(crop_center((img_for_skel.astype(np.uint8) * 255), 800))
 
 # ----------------------------
 # compute middle only on button; placeholders exist from startup
@@ -540,17 +548,16 @@ res = st.session_state.lower_cache
 # Render middle outputs (or keep placeholders if not run yet)
 # ----------------------------
 if res_middle is None:
-   # disp_img_03 = st.image(blank_gray)
-   # disp_img_04 = st.image(blank_rgb)
-    disp_img_03.image(blank_gray)
-    disp_img_04.image(blank_gray)
+    disp_img_04 = st.image(blank_gray)
+    disp_img_05 = st.image(blank_rgb)
     
 else:
+
     img_for_skel = res_middle["img_for_skel"]
-    disp_img_03.image(crop_center((img_for_skel.astype(np.uint8) * 255), 800))
+    disp_img_04.image(crop_center((img_for_skel.astype(np.uint8) * 255), 800))
 
     img_skel = res_middle["img_skel"]
-    disp_img_04.image(crop_center((img_skel.astype(np.uint8) * 255), 800))
+    disp_img_05.image(crop_center((img_skel.astype(np.uint8) * 255), 800))
 
 # ----------------------------
 # Render lower outputs (or keep placeholders if not run yet)
@@ -572,7 +579,7 @@ if res is None:
 
 else:
     img_paired = iio.imread(res["paired_tif"])
-    disp_img_05.image(crop_center(img_paired, 800))
+    disp_img_06.image(crop_center(img_paired, 800))
 
     lengths_all = fibers_to_lengths_um(res["fibers_filtered"], um_per_px=float(um_per_px))
     r0, r1 = float(hist_min_um), float(hist_max_um)
