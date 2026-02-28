@@ -73,7 +73,6 @@ def weighted_quantile(values: np.ndarray, weights: np.ndarray, q: float) -> floa
 def fibers_to_lengths_um(fibers, um_per_px: float) -> np.ndarray:
     return np.array([float(f.length_px) * float(um_per_px) for f in fibers], dtype=float)
 
-@st.cache_data
 def compute_upper(
     img_path: str,
     background_is_dark: bool,
@@ -210,10 +209,13 @@ uploaded = st.sidebar.file_uploader(
     "Drag & drop here, or Browse file",
     type=["tif", "tiff", "png", "jpg", "jpeg"],
 )
+sidebar_disabled = uploaded is None
 
 # ----------------------------
 # Sidebar: parameters (all number inputs)
 # ----------------------------
+st.sidebar.markdown("---")
+
 st.sidebar.header("Parameters (1st step: preprocess -> binarize)")
 
 background_is_dark = bool(
@@ -234,7 +236,7 @@ um_per_px = float(
 
 blur_sigma_px = float(
     st.sidebar.number_input(
-        "**blur_sigma_px:**  \n extent of blurring in generating background",
+        "**blur_sigma_px:**  \n blurring in generating background",
         value=float(CFG.blur_sigma_px),
         step=0.5,
         format="%.1f",
@@ -243,10 +245,6 @@ blur_sigma_px = float(
 
 threshold_otsu = float("nan")
 
-# ----------------------------
-# Sidebar: remaining parameters (render once; disabled until file is loaded)
-# ----------------------------
-sidebar_disabled = uploaded is None
 
 threshold_manual = float(
     st.sidebar.number_input(
@@ -266,6 +264,14 @@ threshold_otsu_line_ph = st.sidebar.empty()
 #threshold_otsu_line_ph.write("threshold_otsu: -" if sidebar_disabled else "threshold_otsu (recommended): (computing...)")
 threshold_otsu_line_ph.write("threshold_otsu (recommended): (computing...)")
 
+if not sidebar_disabled:
+    st.session_state.threshold_manual = float(threshold_manual)
+
+st.sidebar.markdown("---")
+st.sidebar.header("Parameteres (preprocess)")
+
+run_middle_button = st.sidebar.button("Run preprocess \n (noise elimination -> skeletonize)", disabled=sidebar_disabled)
+
 eliminate_length_px = int(
     st.sidebar.number_input(
         "**eliminate_length_px:**  \n elminate object with this px*px area before skeletonize",
@@ -283,11 +289,6 @@ trim_length_px = int(
         #disabled=sidebar_disabled,
     )
 )
-
-# if not sidebar_disabled:
-#     st.session_state.threshold_manual = float(threshold_manual)
-
-run_middle_button = st.sidebar.button("Run preprocess  \n (noise elimination -> closing)", disabled=sidebar_disabled)
 
 st.sidebar.markdown("---")
 

@@ -4,23 +4,21 @@ from __future__ import annotations
 
 from typing import Dict, List, Set, Tuple, Optional
 
+import numpy as np
+
 from fiberlen.types import CompressedGraph, Fiber
-from fiberlen.types import NodeKind, SegmentKind  # ★既存
+from fiberlen.types import NodeKind, SegmentKind  # ★追加
 
 
 def measure_length(graph: CompressedGraph, top_cut: int) -> List[Fiber]:
     """
     セグメント長さ測定（= 繊維トレースして Fiber を作る）
 
-    既存仕様（維持）
+    修正点
+    ------
     ・NodeKind.JUNCTION_ELEMENT は統計対象外として無視
     ・SegmentKind.SEGMENT のみトレース対象（JUNCTION_ELEMENT等は無視）
     ・incident map も SEGMENT のみで構築
-
-    追加仕様（今回）
-    ・seg.touches_border == True を含む繊維は計測対象外（返り値の fibers に含めない）
-      もし接合（pairing/merge等）によって 1本扱いになっている場合でも、
-      トレースされた seg_ids のどれかが touches_border=True なら、その繊維全体を除外する。
     """
     pair_map: Dict[Tuple[int, int], int] = getattr(graph, "pair_map", {}) or {}
 
@@ -41,20 +39,11 @@ def measure_length(graph: CompressedGraph, top_cut: int) -> List[Fiber]:
         for start_seg in incident.get(start_node, []):
             if start_seg in used_segments:
                 continue
-
-            traced = _trace_one_fiber(graph, incident, pair_map, start_node, start_seg)
-            if traced is None:
+            f = _trace_one_fiber(graph, incident, pair_map, start_node, start_seg)
+            if f is None:
                 continue
-
-            f, touched = traced
-
-            # ★除外する場合でも、セグメントは使用済みにする（再トレース防止）
             for sid in f.seg_ids:
                 used_segments.add(sid)
-
-            if touched:
-                continue
-
             f.fiber_id = fid
             fid += 1
             fibers.append(f)
@@ -66,19 +55,11 @@ def measure_length(graph: CompressedGraph, top_cut: int) -> List[Fiber]:
             continue
         if sid in used_segments:
             continue
-
-        traced = _trace_one_fiber(graph, incident, pair_map, seg.start_node, sid)
-        if traced is None:
+        f = _trace_one_fiber(graph, incident, pair_map, seg.start_node, sid)
+        if f is None:
             continue
-
-        f, touched = traced
-
         for s2 in f.seg_ids:
             used_segments.add(s2)
-
-        if touched:
-            continue
-
         f.fiber_id = fid
         fid += 1
         fibers.append(f)
@@ -126,11 +107,7 @@ def _trace_one_fiber(
     pair_map: Dict[Tuple[int, int], int],
     start_node: int,
     start_seg: int,
-) -> Optional[Tuple[Fiber, bool]]:
-    """
-    1本の繊維をトレースして Fiber を返す。
-    返り値の bool は「トレース中に touches_border=True のセグメントを踏んだか」。
-    """
+) -> Optional[Fiber]:
     if start_seg not in g.segments:
         return None
 
@@ -144,8 +121,6 @@ def _trace_one_fiber(
     node_id = int(start_node)
     sid = int(start_seg)
 
-    touched_border = False
-
     while True:
         if sid in visited_local:
             break
@@ -157,10 +132,6 @@ def _trace_one_fiber(
         # ★途中でSEGMENT以外に入ったら終了
         if getattr(seg, "kind", SegmentKind.SEGMENT) != SegmentKind.SEGMENT:
             break
-
-        # ★境界近接フラグの伝播（この繊維は後で除外）
-        if bool(getattr(seg, "touches_border", False)):
-            touched_border = True
 
         visited_local.add(sid)
         seg_ids.append(sid)
@@ -187,7 +158,6 @@ def _trace_one_fiber(
             sid = int(nxt)
             continue
 
-        # deg==2 の通常通過
         cands = [x for x in incident.get(next_node, []) if x != sid]
         if not cands:
             break
@@ -197,4 +167,4 @@ def _trace_one_fiber(
     if not seg_ids:
         return None
 
-    return Fiber(fiber_id=-1, seg_ids=seg_ids, length_px=0.0), touched_border
+    return Fiber(fiber_id=-1, seg_ids=seg_ids, length_px=0.0)
