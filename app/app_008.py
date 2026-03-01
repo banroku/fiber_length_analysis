@@ -15,7 +15,6 @@ sys.path.insert(0, str(SRC))
 
 from fiberlen.config import CFG, Config
 from fiberlen.input_img import input_img
-from fiberlen.config_io import save_cfg_json, load_cfg_json
 from fiberlen.subtract_background import subtract_background
 from fiberlen.calc_otsu_threshold import calc_otsu_threshold
 from fiberlen.binarize import binarize
@@ -155,7 +154,7 @@ def compute_lower_and_save(
         fibers_filtered=fibers_filtered,
     )
 
-#cfg = CFG
+cfg = CFG
 # ----------------------------
 # Session state (for fixed layout)
 # ----------------------------
@@ -164,8 +163,7 @@ if "file_id" not in st.session_state:
 if "threshold" not in st.session_state:
     st.session_state.threshold = None
 if "cfg" not in st.session_state:
-    st.session_state.cfg = CFG 
-
+    st.session_state.cfg = cfg 
 
 # ----------------------------
 # Sidebar: file uploader at top
@@ -176,51 +174,6 @@ uploaded = st.sidebar.file_uploader(
     type=["tif", "tiff", "png", "jpg", "jpeg"],
 )
 sidebar_disabled = uploaded is None
-
-
-# ----------------------------
-# Sidebar: config loader
-# ----------------------------
-uploaded_cfg = st.sidebar.file_uploader(
-    "cfg.json を読み込む",
-    type="json",
-)
-
-if uploaded_cfg is not None:
-    # 一時ファイルに保存
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
-        tmp.write(uploaded_cfg.read())
-        tmp_path = tmp.name
-
-    # dataclass として復元
-    loaded_cfg = load_cfg_json(Config, tmp_path)
-
-    # session_state に差し替え
-    st.session_state.cfg = loaded_cfg
-    #cfg = loaded_cfg
-   
-    # cfgに代入したら、uploaded_cfgのフラグは落とす
-    uploaded_cfg = None
-
-cfg = st.session_state.cfg
-
-
-# ----------------------------
-# Sidebar: config downloader
-# ----------------------------
-with tempfile.TemporaryDirectory() as td:
-    tmp_path = Path(td) / "cfg.json"
-    save_cfg_json(cfg, str(tmp_path))
-
-    json_bytes = tmp_path.read_bytes()
-
-st.sidebar.download_button(
-    label="save parameters as .json",
-    data=json_bytes,
-    file_name = "fiber_length_analysis_config.json",
-    mime="application/json",
-)
-
 
 # ----------------------------
 # Sidebar: parameters (all number inputs)
@@ -404,7 +357,6 @@ cfg.hist_bins = int(
         step=1,
     )
 )
-
 
 # ----------------------------
 # Main: fixed layout placeholders (always rendered)
