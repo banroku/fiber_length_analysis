@@ -1,18 +1,14 @@
-# src/fiberlen/subtract_background.py
+# Path: src/fiberlen/subtract_background.py
 
 from __future__ import annotations
-
 import numpy as np
 from scipy.ndimage import gaussian_filter
-
-from typing import TYPE_CHECKING  # ☆彡
-if TYPE_CHECKING:  # ☆彡
-    from .config import Config  # ☆彡
 
 
 def subtract_background(
     img_raw: np.ndarray,
-     blur_sigma_px: float, 
+    #blur_sigma_px: float,
+    cfg: 
 ) -> np.ndarray:
     """
     背景均一化（masked blur方式）
@@ -29,14 +25,23 @@ def subtract_background(
     3) 背景候補以外（=繊維）は ref に置換
     4) Gaussian blur で局所平均背景生成
     5) 元画像から差分を取って正規化
+
+    Parameters
+    ----------
+    img_raw : float ndarray [0,1]
+    blur_sigma_px : float
+        局所平均スケール（繊維幅の10倍程度想定）
+
+    Returns
+    -------
+    img_preprocessed : float ndarray [0,1]
     """
 
     img = np.asarray(img_raw, dtype=np.float32)
 
-    blur_sigma_px = float(blur_sigma_px)
-
     # ----- 基準輝度 -----
-    ref = gaussian_filter(img_raw, sigma=blur_sigma_px)
+    #ref = float(np.mean(img))
+    ref = gaussian_filter(img_raw, sigma=float(blur_sigma_px))
 
     # ----- 背景マスク -----
     background_mask = img > ref
@@ -46,7 +51,7 @@ def subtract_background(
     masked[~background_mask] = ref[~background_mask]
 
     # ----- 局所平均 -----
-    background = gaussian_filter(masked, sigma=blur_sigma_px)
+    background = gaussian_filter(masked, sigma=float(blur_sigma_px))
 
     # ----- 差分 -----
     corrected = img - background

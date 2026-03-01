@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 
 
-def calc_Otsu_threshold(img_preprocessed: np.ndarray) -> float:
+def calc_otsu_threshold(img_preprocessed: np.ndarray) -> float:
     """
     大津の二値化閾値を計算して返す（GUIでの推奨値表示用）
 

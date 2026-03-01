@@ -24,7 +24,7 @@ def trim_graph(graph: CompressedGraph, trim_length: float) -> CompressedGraph:
     ・pair_map はこの段階では未作成の前提のため触らない
     """
     graph_trimmed: CompressedGraph = copy.deepcopy(graph)
-    trim_length = float(trim_length)
+    #trim_length = float(trim_length)
 
     if trim_length <= 0:
         return graph_trimmed

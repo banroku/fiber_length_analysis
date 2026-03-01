@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class Config:
     # ---- scale ----
     um_per_px: float = 10.6  # 1 pixel が何 um か（表示やGUI入力の変換用）
@@ -54,7 +54,9 @@ class Config:
     post_eliminate_length_px: float = 5 # 最終的に短い繊維を除外する閾値(px)
 
     # ---- visualize result ----
-    hist_range: tuple = (0, 2000) # ヒストグラムの表示範囲
+    #hist_range: list = [0, 2000] # ヒストグラムの表示範囲
+    hist_min_um: float = 0 # ヒストグラムの表示範囲
+    hist_max_um: float = 2000 # ヒストグラムの表示範囲
     hist_bins: int = 30 # ヒストグラムの区間数
 
 CFG = Config()

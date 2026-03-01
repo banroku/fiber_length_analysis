@@ -1,8 +1,8 @@
 # Path: src/fiberlen/binarize.py
 
 from __future__ import annotations
-
 import numpy as np
+
 
 def binarize(img_preprocessed: np.ndarray, threshold: float) -> np.ndarray:
     """
@@ -21,5 +21,5 @@ def binarize(img_preprocessed: np.ndarray, threshold: float) -> np.ndarray:
         True が繊維（前景=1）
     """
     x = np.asarray(img_preprocessed, dtype=np.float32)
-    #threshold = float(threshold)
-    return (x > threshold)
+    t = float(threshold)
+    return (x > t)

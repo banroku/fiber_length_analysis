@@ -19,6 +19,7 @@ def input_img(img_path: PathLike, background_is_dark: bool) -> np.ndarray:
     arr = iio.imread(str(Path(img_path)))
     gray = _to_grayscale(arr)
     img01 = _normalize01(gray)
+    #background_is_dark = cfg.background_is_dark
 
     if not background_is_dark:
         img01 = 1.0 - img01
