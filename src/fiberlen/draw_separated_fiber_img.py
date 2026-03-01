@@ -13,21 +13,20 @@ from fiberlen.types import (
     SegmentKind,  # ★追加
 )
 
+# _OUT_DIR: Optional[Path] = None
+# _TAG: str = "result"
+# 
 
-_OUT_DIR: Optional[Path] = None
-_TAG: str = "result"
-
-
-def configure_draw_output(out_dir: str | Path, tag: str) -> None:
-    global _OUT_DIR, _TAG
-    _OUT_DIR = Path(out_dir)
-    _TAG = str(tag)
-
+# def configure_draw_output(out_dir: str | Path, tag: str) -> None:
+#     global _OUT_DIR, _TAG
+#     _OUT_DIR = Path(out_dir)
+#     _TAG = str(tag)
+# 
 
 def draw_separated_fiber_img(graph_paired: CompressedGraph, img_skeletonized: np.ndarray) -> None:
 
-    out_dir = _OUT_DIR if _OUT_DIR is not None else Path("data/output")
-    out_dir.mkdir(parents=True, exist_ok=True)
+#    out_dir = _OUT_DIR if _OUT_DIR is not None else Path("data/output")
+#    out_dir.mkdir(parents=True, exist_ok=True)
 
     h, w = img_skeletonized.shape[:2]
 
@@ -91,7 +90,7 @@ def draw_separated_fiber_img(graph_paired: CompressedGraph, img_skeletonized: np
     lut = (cmap((np.arange(color_index + 1) % cmap.N))[:, :3] * 255).astype(np.uint8)
     lut[0] = 0
 
-    rgb = lut[label]
+    img_labeled = lut[label]
 
     # ----------------------------------------
     # ★ blob要素を白で上書き
@@ -104,18 +103,20 @@ def draw_separated_fiber_img(graph_paired: CompressedGraph, img_skeletonized: np
         if seg.kind != SegmentKind.JUNCTION_ELEMENT:
             continue
         for r, c in seg.pixels:
-            rgb[r, c] = WHITE
+            img_labeled[r, c] = WHITE
 
     # ノードblob
     for node in graph_paired.nodes.values():
         if node.kind != NodeKind.JUNCTION_ELEMENT:
             continue
         r, c = node.coord
-        rgb[r, c] = WHITE
+        img_labeled[r, c] = WHITE
 
-    # ----------------------------------------
-    # 保存
-    # ----------------------------------------
-    out_path = out_dir / f"{_TAG}__paired_segments.tif"
-    iio.imwrite(out_path, rgb)
+    return img_labeled
+
+#     # ----------------------------------------
+#     # 保存
+#     # ----------------------------------------
+#     out_path = out_dir / f"{_TAG}__paired_segments.tif"
+#     iio.imwrite(out_path, img_labeled)
 

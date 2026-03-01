@@ -15,7 +15,6 @@ sys.path.insert(0, str(SRC))
 
 import fiberlen.config as cfg_mod
 from fiberlen.config import CFG, Config
-
 from fiberlen.input_img import input_img
 from fiberlen.subtract_background import subtract_background
 from fiberlen.calc_otsu_threshold import calc_Otsu_threshold
@@ -29,7 +28,8 @@ from fiberlen.kink_cut import kink_cut
 from fiberlen.pairing import pairing
 from fiberlen.measure_length import measure_length
 from fiberlen.postprocess import postprocess
-from fiberlen.draw_separated_fiber_img import configure_draw_output, draw_separated_fiber_img
+# from fiberlen.draw_separated_fiber_img import configure_draw_output, draw_separated_fiber_img
+from fiberlen.draw_separated_fiber_img import draw_separated_fiber_img
 
 st.set_page_config(layout="wide")
 st.title("Fiber Length Analysis GUI")
@@ -177,14 +177,15 @@ def compute_lower_and_save(
         used_config=used_cfg_payload,
     )
 
-    configure_draw_output(out_dir, tag)
-    draw_separated_fiber_img(graph_paired, img_skel)
+    #configure_draw_output(out_dir, tag)
+    img_labeled = draw_separated_fiber_img(graph_paired, img_skel)
 
     paired_tif_path = out_dir / f"{tag}__paired_segments.tif"
 
     return dict(
         out_dir=str(out_dir),
         img_skel=img_skel,
+        img_labeled=img_labeled,
         paired_tif=str(paired_tif_path),
         fibers_total=int(len(fibers)),
         fibers_used=int(len(fibers_filtered)),
@@ -541,8 +542,6 @@ res = st.session_state.lower_cache
 # Render middle outputs (or keep placeholders if not run yet)
 # ----------------------------
 if res_middle is None:
-   # disp_img_03 = st.image(blank_gray)
-   # disp_img_04 = st.image(blank_rgb)
     disp_img_03.image(blank_gray)
     disp_img_04.image(blank_gray)
     
@@ -572,8 +571,9 @@ if res is None:
     plt.close(fig)
 
 else:
-    img_paired = iio.imread(res["paired_tif"])
-    disp_img_05.image(crop_center(img_paired, 800))
+    #img_paired = iio.imread(res["paired_tif"])
+    #disp_img_05.image(crop_center(img_paired, 800))
+    disp_img_05.image(crop_center(res["img_labeled"], 800))
 
     lengths_all = fibers_to_lengths_um(res["fibers_filtered"], um_per_px=float(um_per_px))
     r0, r1 = float(hist_min_um), float(hist_max_um)
