@@ -170,9 +170,9 @@ if "cfg" not in st.session_state:
 # ----------------------------
 # Sidebar: file uploader at top
 # ----------------------------
-st.sidebar.header("Data")
+st.sidebar.header("Input")
 uploaded = st.sidebar.file_uploader(
-    "load image",
+    "Drag & drop here, or Browse file",
     type=["tif", "tiff", "png", "jpg", "jpeg"],
 )
 sidebar_disabled = uploaded is None
@@ -182,7 +182,7 @@ sidebar_disabled = uploaded is None
 # Sidebar: config loader
 # ----------------------------
 uploaded_cfg = st.sidebar.file_uploader(
-    "load settings (.json)",
+    "cfg.json を読み込む",
     type="json",
 )
 
@@ -208,8 +208,6 @@ cfg = st.session_state.cfg
 # ----------------------------
 # Sidebar: config downloader
 # ----------------------------
-st.sidebar.write("Save settings")
-
 with tempfile.TemporaryDirectory() as td:
     tmp_path = Path(td) / "cfg.json"
     save_cfg_json(cfg, str(tmp_path))
@@ -217,7 +215,7 @@ with tempfile.TemporaryDirectory() as td:
     json_bytes = tmp_path.read_bytes()
 
 st.sidebar.download_button(
-    label="save settings as .json",
+    label="save parameters as .json",
     data=json_bytes,
     file_name = "fiber_length_analysis_config.json",
     mime="application/json",
@@ -228,12 +226,22 @@ st.sidebar.download_button(
 # Sidebar: parameters (all number inputs)
 # ----------------------------
 st.sidebar.markdown("---")
-st.sidebar.subheader("Load image & binarize")
+
+st.sidebar.header("Parameters (1st step: preprocess -> binarize)")
 
 cfg.background_is_dark = bool(
     st.sidebar.toggle(
         "dark background",
         value=1 if bool(st.session_state.cfg.background_is_dark) else 0,
+    )
+)
+
+cfg.um_per_px = float(
+    st.sidebar.number_input(
+        "**um_per_px:**  \n setting scale here",
+        value=float(st.session_state.cfg.um_per_px),
+        step=0.1,
+        format="%.2f",
     )
 )
 
@@ -247,6 +255,7 @@ cfg.blur_sigma_px = float(
 )
 
 cfg.threshold_otsu = float("nan")
+
 
 cfg.threshold = float(
     st.sidebar.number_input(
@@ -266,74 +275,14 @@ threshold_otsu_line_ph.write("threshold_otsu (recommended): (computing...)")
 
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Eliminate noise and skeletonise")
+st.sidebar.header("Parameteres (preprocess)")
 
-run_middle_button = st.sidebar.button("Eliminate_noise -> skeletonize)", disabled=sidebar_disabled)
+run_middle_button = st.sidebar.button("Run preprocess \n (noise elimination -> skeletonize)", disabled=sidebar_disabled)
 
 cfg.eliminate_length_px = int(
     st.sidebar.number_input(
         "**eliminate_length_px:**  \n elminate object with this px*px area before skeletonize",
         value=int(st.session_state.cfg.eliminate_length_px),
-        step=1,
-    )
-)
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("Graph and Histrogram setting")
-
-cfg.post_eliminate_length_px = float(
-    st.sidebar.number_input(
-        "**post_eliminate_length_px:**  \n remove fibers less than this length from statistics",
-        value=float(st.session_state.cfg.post_eliminate_length_px),
-        step=5.0 if sidebar_disabled else 5.0,
-        format="%.0f" if sidebar_disabled else "%.0f",
-    )
-)
-
-cfg.um_per_px = float(
-    st.sidebar.number_input(
-        "**um_per_px:**  \n setting scale here",
-        value=float(st.session_state.cfg.um_per_px),
-        step=0.1,
-        format="%.2f",
-    )
-)
-
-cfg.hist_min_um = float(
-    st.sidebar.number_input(
-        "**hist_min_um:**",
-        value=float(st.session_state.cfg.hist_min_um),
-        step=10.0,
-        format="%.0f" if sidebar_disabled else "%.0f",
-    )
-)
-
-cfg.hist_max_um = float(
-    st.sidebar.number_input(
-        "**hist_max_um:**",
-        value=float(st.session_state.cfg.hist_max_um),
-        step=10.0,
-        format="%.0f" if sidebar_disabled else "%.0f",
-    )
-)
-cfg.hist_bins = int(
-    st.sidebar.number_input(
-        "**hist_bins:**",
-        value=int(st.session_state.cfg.hist_bins),
-        step=1,
-    )
-)
-
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("Analysis settings")
-
-run_lower_button = st.sidebar.button("Run analysis", disabled=sidebar_disabled)
-
-cfg.border_margin_px = int(
-    st.sidebar.number_input(
-        "**border_margin_px:**  \n ignore object this px close to the edge",
-        value=int(st.session_state.cfg.border_margin_px),
         step=1,
     )
 )
@@ -346,6 +295,19 @@ cfg.trim_length_px = int(
     )
 )
 
+st.sidebar.markdown("---")
+
+st.sidebar.header("Parameters (skeletonize -> results)")
+
+run_lower_button = st.sidebar.button("Run analysis  \n (skeletonize -> results)", disabled=sidebar_disabled)
+
+cfg.border_margin_px = int(
+    st.sidebar.number_input(
+        "**border_margin_px:**  \n ignore object this px close to the edge",
+        value=int(st.session_state.cfg.border_margin_px),
+        step=1,
+    )
+)
 cfg.merge_short_seg_px = int(
     st.sidebar.number_input(
         "**merge_short_seg_px:**  \n merge nodes this px close to each other",
@@ -409,17 +371,52 @@ cfg.top_cut = int(
         step=1,
     )
 )
+cfg.post_eliminate_length_px = float(
+    st.sidebar.number_input(
+        "**post_eliminate_length_px:**  \n remove fibers less than this length from statistics",
+        value=float(st.session_state.cfg.post_eliminate_length_px),
+        step=5.0 if sidebar_disabled else 5.0,
+        format="%.0f" if sidebar_disabled else "%.0f",
+    )
+)
+
+cfg.hist_min_um = float(
+    st.sidebar.number_input(
+        "**hist_min_um:**",
+        value=float(st.session_state.cfg.hist_min_um),
+        step=10.0,
+        format="%.0f" if sidebar_disabled else "%.0f",
+    )
+)
+
+cfg.hist_max_um = float(
+    st.sidebar.number_input(
+        "**hist_max_um:**",
+        value=float(st.session_state.cfg.hist_max_um),
+        step=10.0,
+        format="%.0f" if sidebar_disabled else "%.0f",
+    )
+)
+cfg.hist_bins = int(
+    st.sidebar.number_input(
+        "**hist_bins:**",
+        value=int(st.session_state.cfg.hist_bins),
+        step=1,
+    )
+)
+
+
 # ----------------------------
 # Main: fixed layout placeholders (always rendered)
 # ----------------------------
 blank_gray = np.zeros((800, 800), dtype=np.uint8)
 blank_rgb = np.zeros((800, 800, 3), dtype=np.uint8)
 
-st.subheader("Preprocess")
+st.subheader("1st step: preprocess -> binarize")
 u1, u2, u3 = st.columns(3)
 
 with u1:
-    st.write("Original (bg subtracted)")
+    st.write("Original(background subtracted)")
     disp_img_01 = st.image(blank_gray)
 with u2:
     st.write("Binarized")
@@ -428,29 +425,27 @@ with u3:
     st.write("Noise eliminated")
     disp_img_03 = st.image(blank_gray)
 
-
 st.markdown("---")
-st.subheader("Alalysis result with color label")
 
+st.subheader("2nd step (skeletonize -> results)")
 l1, l2 = st.columns(2)
 with l1:
     st.write("Skeletonized")
     disp_img_04 = st.image(blank_gray)
 with l2:
-    st.write("Identified fibers")
+    st.write("draw_separated_fiber_img output")
     disp_img_05 = st.image(blank_rgb)
 
 st.markdown("---")
 
-st.subheader("Histogram (length-weighted)")
+st.subheader("Histogram (x: um, y: % of total length) with cumulative %")
 hist_ph = st.empty()
 
-st.write("R table (length-weighted)")
+st.write("R table + length-weighted mean (tab-separated)")
 rtext_ph = st.empty()
 
 st.write("Counts")
 counts_ph = st.empty()
-
 
 # ----------------------------
 # If no file yet: keep placeholders and stop
