@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Set, Tuple, Optional
 
-from fiberlen.types import CompressedGraph, Fiber
-from fiberlen.types import NodeKind, SegmentKind  # ★既存
+from fiberlen.types import CompressedGraph, Fiber, NodeKind, SegmentKind
+#from fiberlen.types import NodeKind, SegmentKind  # ★既存
 
 
 def measure_length(graph: CompressedGraph, top_cut: int) -> List[Fiber]:
@@ -59,29 +59,6 @@ def measure_length(graph: CompressedGraph, top_cut: int) -> List[Fiber]:
             fid += 1
             fibers.append(f)
 
-    # 閉ループ等（端点が無い成分）：SEGMENT のみを起点に拾う
-    for sid in sorted(graph.segments.keys()):
-        seg = graph.segments[sid]
-        if getattr(seg, "kind", SegmentKind.SEGMENT) != SegmentKind.SEGMENT:
-            continue
-        if sid in used_segments:
-            continue
-
-        traced = _trace_one_fiber(graph, incident, pair_map, seg.start_node, sid)
-        if traced is None:
-            continue
-
-        f, touched = traced
-
-        for s2 in f.seg_ids:
-            used_segments.add(s2)
-
-        if touched:
-            continue
-
-        f.fiber_id = fid
-        fid += 1
-        fibers.append(f)
 
     # length計算、ソート、top_cut
     for f in fibers:
@@ -96,7 +73,7 @@ def measure_length(graph: CompressedGraph, top_cut: int) -> List[Fiber]:
             - top_cut * 2  # 繊維両末端が長めに計測される分を削る
         )
 
-    fibers.sort(key=lambda x: x.length_px, reverse=True)
+    fibers.sort(key=lambda x: x.length_px, reverse=False)
 
     return fibers
 

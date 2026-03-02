@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple, Optional, Set
+from typing import Dict, List, Tuple, Optional
 
 import math
 import numpy as np
@@ -102,63 +102,11 @@ def pairing(
             pair_map[(nid, b)] = a
 
     setattr(g, "pair_map", pair_map)
-    _propagate_touches_border(g, pair_map)
     return g
 
 
 # --------------------- helpers ---------------------
 
-
-
-
-
-def _propagate_touches_border(g: CompressedGraph, pair_map: Dict[Tuple[int, int], int]) -> None:
-    """
-    pair_map で論理的に接続されたセグメント集合（連結成分）ごとに、
-    touches_border を OR で伝播する。
-
-    ある連結成分の中に touches_border=True が1つでもあれば、
-    その成分内の全セグメントを touches_border=True にする。
-    """
-    # SEGMENTのみを対象に、pair_map から隣接（無向）を作る
-    neighbors: Dict[int, List[int]] = {}
-    for (nid, a), b in pair_map.items():
-        # pair_map は相互登録が前提だが、念のため無向として両方追加する
-        if a == b:
-            continue
-        sa = g.segments.get(a)
-        sb = g.segments.get(b)
-        if sa is None or sb is None:
-            continue
-        if sa.kind != SegmentKind.SEGMENT or sb.kind != SegmentKind.SEGMENT:
-            continue
-        neighbors.setdefault(a, []).append(b)
-        neighbors.setdefault(b, []).append(a)
-
-    visited: Set[int] = set()
-    # 連結成分を DFS で収集し、OR 判定して一括で書き戻す
-    for start in neighbors.keys():
-        if start in visited:
-            continue
-        stack = [start]
-        comp: List[int] = []
-        any_touch = False
-        visited.add(start)
-
-        while stack:
-            sid = stack.pop()
-            comp.append(sid)
-            if g.segments[sid].touches_border:
-                any_touch = True
-            for nb in neighbors.get(sid, []):
-                if nb in visited:
-                    continue
-                visited.add(nb)
-                stack.append(nb)
-
-        if any_touch:
-            for sid in comp:
-                g.segments[sid].touches_border = True
 
 def _build_incident_map(g: CompressedGraph) -> Dict[int, List[int]]:
     incident: Dict[int, List[int]] = {nid: [] for nid in g.nodes.keys()}

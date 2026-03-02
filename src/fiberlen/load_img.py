@@ -1,4 +1,4 @@
-# Path: src/fiberlen/io.py
+# Path: src/fiberlen/load_img.py
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,7 +10,7 @@ import imageio.v3 as iio
 PathLike = Union[str, Path]
 
 
-def input_img(img_path: PathLike, background_is_dark: bool) -> np.ndarray:
+def load_img(img_path: PathLike, background_is_dark: bool) -> np.ndarray:
     """
     画像を読み込み、float32の0.0-1.0へ正規化して返す。
     以後の処理は「背景が黒（低輝度）」前提なので、
@@ -25,44 +25,6 @@ def input_img(img_path: PathLike, background_is_dark: bool) -> np.ndarray:
         img01 = 1.0 - img01
 
     return img01.astype(np.float32, copy=False)
-
-
-def read_skeleton_tif(img_path: PathLike, foreground: str = "auto") -> np.ndarray:
-    """
-    skeleton用のtifを読み込み、bool配列で返す。
-
-    foreground:
-      - "auto": True側が少ない方を前景（スケルトン）とみなす
-      - "white": 白(高輝度)が前景
-      - "black": 黒(低輝度)が前景
-    """
-    arr = iio.imread(str(Path(img_path)))
-    if arr.ndim == 3:
-        arr = _to_grayscale(arr)
-
-    if arr.dtype == np.bool_:
-        sk = arr.copy()
-    else:
-        a = np.asarray(arr)
-        if np.issubdtype(a.dtype, np.integer):
-            info = np.iinfo(a.dtype)
-            thr = info.max // 2
-            sk = a > thr
-        else:
-            a01 = _normalize01(a)
-            sk = a01 > 0.5
-
-    fg = foreground.lower()
-    if fg not in ("auto", "white", "black"):
-        raise ValueError("foreground must be 'auto', 'white', or 'black'")
-
-    if fg == "white":
-        return sk.astype(bool, copy=False)
-    if fg == "black":
-        return (~sk).astype(bool, copy=False)
-
-    # auto: Trueの方が多いなら反転して「細い線」をTrueに寄せる
-    return (sk if np.count_nonzero(sk) <= (sk.size // 2) else ~sk).astype(bool, copy=False)
 
 
 def _to_grayscale(arr: np.ndarray) -> np.ndarray:

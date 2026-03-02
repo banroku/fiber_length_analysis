@@ -8,13 +8,14 @@ import numpy as np
 import streamlit as st
 import imageio.v3 as iio
 import matplotlib.pyplot as plt
+from io import BytesIO
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
 from fiberlen.config import CFG, Config
-from fiberlen.input_img import input_img
+from fiberlen.load_img import load_img
 from fiberlen.config_io import save_cfg_json, load_cfg_json
 from fiberlen.subtract_background import subtract_background
 from fiberlen.calc_otsu_threshold import calc_otsu_threshold
@@ -29,6 +30,7 @@ from fiberlen.pairing import pairing
 from fiberlen.measure_length import measure_length
 from fiberlen.postprocess import postprocess
 from fiberlen.draw_separated_fiber_img import draw_separated_fiber_img
+from fiberlen.save_fiber_list_csv import save_fiber_list_csv
 
 st.set_page_config(layout="wide")
 st.title("Fiber Length Analysis GUI")
@@ -77,7 +79,7 @@ def compute_upper(
     img_path: str,
     cfg: Config,
 ):
-    img_raw01 = input_img(img_path, cfg.background_is_dark)
+    img_raw01 = load_img(img_path, cfg.background_is_dark)
     img_pre01 = subtract_background(img_raw01, cfg.blur_sigma_px)
     img_bin = binarize(img_pre01, cfg.threshold)
     thr_otsu = float(calc_otsu_threshold(img_pre01))
@@ -250,7 +252,7 @@ threshold_otsu_line_ph.write("threshold_otsu (recommended): (computing...)")
 st.sidebar.markdown("---")
 st.sidebar.subheader("Eliminate noise and skeletonise")
 
-run_middle_button = st.sidebar.button("Eliminate_noise -> skeletonize)", disabled=sidebar_disabled)
+run_middle_button = st.sidebar.button("Eliminate_noise -> skeletonize", disabled=sidebar_disabled)
 
 cfg.eliminate_length_px = int(
     st.sidebar.number_input(
@@ -261,7 +263,9 @@ cfg.eliminate_length_px = int(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Graph and Histrogram settings")
+st.sidebar.subheader("Generate graph and Histrogram")
+
+run_lower_button = st.sidebar.button("Generate", disabled=sidebar_disabled)
 
 cfg.um_per_px = float(
     st.sidebar.number_input(
@@ -307,7 +311,6 @@ with st.sidebar.expander("Graph and Histrogram settings", expanded=False):
         )
     )
 
-run_lower_button = st.sidebar.button("Run analysis", disabled=sidebar_disabled)
 
 
 # ----------------------------
@@ -573,7 +576,7 @@ if not res is None:
 
     ax1.bar(centers, hist_pct, width=widths, align="center")
     ax1.set_xlabel("Fiber length (um)")
-    ax1.set_ylabel("Length-weighted %")
+    ax1.set_ylabel("Length-weighted frequency (%)")
 
     ax2.plot(centers, cum_pct, "r-")
     ax2.set_ylabel("Cumulative %")
@@ -606,6 +609,40 @@ if not res is None:
                 f"Pairing count: {res['pairing_count']}",
             ]
         )
+    )
+
+
+st.markdown("---")
+st.markdown("### Fiber List CSV")
+
+cfg = st.session_state.cfg
+
+if res is not None and len(res["fibers_filtered"]) > 0:
+    csv_text = save_fiber_list_csv(
+        fibers=res["fibers_filtered"],
+        filename=tag,
+        um_per_px=cfg.um_per_px,
+    )
+
+    st.download_button(
+        label="Fiber list をCSVで保存",
+        data=csv_text,
+        file_name=f"{tag}_fiber_list.csv",
+        mime="text/csv",
+    )
+else:
+    st.caption("fibers が存在しません")
+
+
+if res is not None:
+    bio = BytesIO()
+    iio.imwrite(bio, res["img_labeled"], extension=".png")
+    
+    st.download_button(
+        label="ラベル画像を保存",
+        data=bio.getvalue(),
+        file_name=f"{tag}_labeled.png",
+        mime="image/png",
     )
 
 tmpdir.cleanup()

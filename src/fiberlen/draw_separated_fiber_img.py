@@ -1,39 +1,39 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Optional, Dict
+from typing import Set
 
 import numpy as np
 import matplotlib.pyplot as plt
-import imageio.v3 as iio
 
-from fiberlen.types import (
-    CompressedGraph,
-    NodeKind,
-    SegmentKind,  # ★追加
-)
+from fiberlen.types import CompressedGraph, NodeKind, SegmentKind
 
-# _OUT_DIR: Optional[Path] = None
-# _TAG: str = "result"
-# 
 
-# def configure_draw_output(out_dir: str | Path, tag: str) -> None:
-#     global _OUT_DIR, _TAG
-#     _OUT_DIR = Path(out_dir)
-#     _TAG = str(tag)
-# 
-
-def draw_separated_fiber_img(graph_paired: CompressedGraph, img_skeletonized: np.ndarray) -> None:
-
-#    out_dir = _OUT_DIR if _OUT_DIR is not None else Path("data/output")
-#    out_dir.mkdir(parents=True, exist_ok=True)
-
+def draw_separated_fiber_img(graph_paired: CompressedGraph, img_skeletonized: np.ndarray) -> np.ndarray:
+    """
+    img_skeletonized (0/1) を土台に、pair_map に従って連結したセグメント列を同色で上書き描画する。
+    touches_border=True の chain は白で描画する（白で辿って visited にも入れる）。
+    戻り値は uint8 の RGB 画像 (H, W, 3)。
+    """
     h, w = img_skeletonized.shape[:2]
 
-    color_map: Dict[int, int] = {}
-    color_index = 0
+    base = (img_skeletonized.astype(np.uint8) * 255)
+    out = np.repeat(base[:, :, None], 3, axis=2)
 
-    def follow_pair_chain(node: int, incoming_seg: int, cidx: int) -> None:
+    cmap = plt.get_cmap("tab20")
+    WHITE = np.array([255, 255, 255], dtype=np.uint8)
+
+    visited: Set[int] = set()
+    color_i = 0
+
+    def draw_segment(seg_id: int, rgb: np.ndarray) -> None:
+        seg = graph_paired.segments[seg_id]
+        if not seg.pixels:
+            return
+        rr = np.fromiter((p[0] for p in seg.pixels), dtype=np.int32)
+        cc = np.fromiter((p[1] for p in seg.pixels), dtype=np.int32)
+        out[rr, cc] = rgb
+
+    def walk_from(node: int, incoming_seg: int, rgb: np.ndarray) -> None:
         n = int(node)
         inc = int(incoming_seg)
         while graph_paired.nodes[n].kind == NodeKind.JUNCTION:
@@ -41,82 +41,49 @@ def draw_separated_fiber_img(graph_paired: CompressedGraph, img_skeletonized: np
             if nxt is None:
                 return
             nxt = int(nxt)
-            if nxt in color_map:
+
+            nxt_seg = graph_paired.segments[nxt]
+            if nxt_seg.kind != SegmentKind.SEGMENT:
                 return
-            color_map[nxt] = cidx
+            if nxt in visited:
+                return
+
+            visited.add(nxt)
+            draw_segment(nxt, rgb)
+
             n = graph_paired.other_node(nxt, n)
             inc = nxt
 
-    # ----------------------------------------
-    # 色付け（通常セグメントのみ）
-    # ----------------------------------------
     for sid in sorted(graph_paired.segments.keys()):
         seg = graph_paired.segments[sid]
-
         if seg.kind != SegmentKind.SEGMENT:
             continue
-
-        if sid in color_map:
+        if sid in visited:
             continue
 
-        color_index += 1
-        color_map[sid] = color_index
+        if seg.touches_border:
+            rgb = WHITE
+        else:
+            rgb = (np.array(cmap(color_i % cmap.N)[:3]) * 255).astype(np.uint8)
+            color_i += 1
 
-        follow_pair_chain(seg.start_node, sid, color_index)
-        follow_pair_chain(seg.end_node, sid, color_index)
+        visited.add(sid)
+        draw_segment(sid, rgb)
 
-    # ----------------------------------------
-    # 描画ラベル作成（通常セグメント）
-    # ----------------------------------------
-    label = np.zeros((h, w), dtype=np.int32)
+        walk_from(seg.start_node, sid, rgb)
+        walk_from(seg.end_node, sid, rgb)
 
-    for sid, seg in graph_paired.segments.items():
-        if seg.kind != SegmentKind.SEGMENT:
-            continue
+#     # blob要素を白で上書き（従来仕様）
+#     for seg in graph_paired.segments.values():
+#         if seg.kind != SegmentKind.JUNCTION_ELEMENT:
+#             continue
+#         for r, c in seg.pixels:
+#             out[r, c] = WHITE
+# 
+#     for node in graph_paired.nodes.values():
+#         if node.kind != NodeKind.JUNCTION_ELEMENT:
+#             continue
+#         r, c = node.coord
+#         out[r, c] = WHITE
 
-        if not seg.pixels:
-            continue
-
-        rr = np.fromiter((p[0] for p in seg.pixels), dtype=np.int32)
-        cc = np.fromiter((p[1] for p in seg.pixels), dtype=np.int32)
-
-        cidx = color_map.get(sid, 1)
-        label[rr, cc] = cidx
-
-    # ----------------------------------------
-    # LUT生成
-    # ----------------------------------------
-    cmap = plt.get_cmap("tab20")
-    lut = (cmap((np.arange(color_index + 1) % cmap.N))[:, :3] * 255).astype(np.uint8)
-    lut[0] = 0
-
-    img_labeled = lut[label]
-
-    # ----------------------------------------
-    # ★ blob要素を白で上書き
-    # ----------------------------------------
-
-    WHITE = np.array([255, 255, 255], dtype=np.uint8)
-
-    # セグメントblob
-    for seg in graph_paired.segments.values():
-        if seg.kind != SegmentKind.JUNCTION_ELEMENT:
-            continue
-        for r, c in seg.pixels:
-            img_labeled[r, c] = WHITE
-
-    # ノードblob
-    for node in graph_paired.nodes.values():
-        if node.kind != NodeKind.JUNCTION_ELEMENT:
-            continue
-        r, c = node.coord
-        img_labeled[r, c] = WHITE
-
-    return img_labeled
-
-#     # ----------------------------------------
-#     # 保存
-#     # ----------------------------------------
-#     out_path = out_dir / f"{_TAG}__paired_segments.tif"
-#     iio.imwrite(out_path, img_labeled)
-
+    return out
