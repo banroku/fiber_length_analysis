@@ -138,7 +138,8 @@ def compute_lower_and_save(
 
     fibers_filtered = postprocess(
         fibers,
-        cfg.post_eliminate_length_px,
+        cfg.post_eliminate_length_um,
+        cfg.um_per_px
     )
 
     img_labeled = draw_separated_fiber_img(graph_paired, img_skel)
@@ -206,29 +207,10 @@ cfg = st.session_state.cfg
 
 
 # ----------------------------
-# Sidebar: config downloader
-# ----------------------------
-st.sidebar.write("Save settings")
-
-with tempfile.TemporaryDirectory() as td:
-    tmp_path = Path(td) / "cfg.json"
-    save_cfg_json(cfg, str(tmp_path))
-
-    json_bytes = tmp_path.read_bytes()
-
-st.sidebar.download_button(
-    label="save settings as .json",
-    data=json_bytes,
-    file_name = "fiber_length_analysis_config.json",
-    mime="application/json",
-)
-
-
-# ----------------------------
 # Sidebar: parameters (all number inputs)
 # ----------------------------
-st.sidebar.markdown("---")
-st.sidebar.subheader("Load image & binarize")
+# st.sidebar.markdown("---")
+# st.sidebar.subheader("Load image & binarize")
 
 cfg.background_is_dark = bool(
     st.sidebar.toggle(
@@ -279,16 +261,7 @@ cfg.eliminate_length_px = int(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Graph and Histrogram setting")
-
-cfg.post_eliminate_length_px = float(
-    st.sidebar.number_input(
-        "**post_eliminate_length_px:**  \n remove fibers less than this length from statistics",
-        value=float(st.session_state.cfg.post_eliminate_length_px),
-        step=5.0 if sidebar_disabled else 5.0,
-        format="%.0f" if sidebar_disabled else "%.0f",
-    )
-)
+st.sidebar.subheader("Graph and Histrogram settings")
 
 cfg.um_per_px = float(
     st.sidebar.number_input(
@@ -298,117 +271,162 @@ cfg.um_per_px = float(
         format="%.2f",
     )
 )
-
-cfg.hist_min_um = float(
+    
+cfg.post_eliminate_length_um = float(
     st.sidebar.number_input(
-        "**hist_min_um:**",
-        value=float(st.session_state.cfg.hist_min_um),
-        step=10.0,
+        "**post_eliminate_length_um**  \n remove fibers less than this length from statistics",
+        value=float(st.session_state.cfg.post_eliminate_length_um),
+        step=5.0 if sidebar_disabled else 5.0,
         format="%.0f" if sidebar_disabled else "%.0f",
     )
 )
-
-cfg.hist_max_um = float(
-    st.sidebar.number_input(
-        "**hist_max_um:**",
-        value=float(st.session_state.cfg.hist_max_um),
-        step=10.0,
-        format="%.0f" if sidebar_disabled else "%.0f",
+    
+with st.sidebar.expander("Graph and Histrogram settings", expanded=False):
+    cfg.hist_min_um = float(
+        st.number_input(
+            "**hist_min_um:**",
+            value=float(st.session_state.cfg.hist_min_um),
+            step=10.0,
+            format="%.0f" if sidebar_disabled else "%.0f",
+        )
     )
-)
-cfg.hist_bins = int(
-    st.sidebar.number_input(
-        "**hist_bins:**",
-        value=int(st.session_state.cfg.hist_bins),
-        step=1,
+    
+    cfg.hist_max_um = float(
+        st.number_input(
+            "**hist_max_um:**",
+            value=float(st.session_state.cfg.hist_max_um),
+            step=10.0,
+            format="%.0f" if sidebar_disabled else "%.0f",
+        )
     )
-)
-
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("Analysis settings")
+    cfg.hist_bins = int(
+        st.number_input(
+            "**hist_bins:**",
+            value=int(st.session_state.cfg.hist_bins),
+            step=1,
+        )
+    )
 
 run_lower_button = st.sidebar.button("Run analysis", disabled=sidebar_disabled)
 
-cfg.border_margin_px = int(
-    st.sidebar.number_input(
-        "**border_margin_px:**  \n ignore object this px close to the edge",
-        value=int(st.session_state.cfg.border_margin_px),
-        step=1,
+
+# ----------------------------
+# Sidebar: other parameters
+# ----------------------------
+st.sidebar.markdown("---")
+st.sidebar.subheader("Other analysis settings")
+
+with st.sidebar.expander("convert_to_graph.py", expanded=False):
+    cfg.border_margin_px = int(
+        st.number_input(
+            "**border_margin_px:**  \n ignore object this px close to the edge",
+            value=int(st.session_state.cfg.border_margin_px),
+            step=1,
+        )
     )
+
+with st.sidebar.expander("trim_graph.py", expanded=False):
+    cfg.trim_length_px = int(
+        st.number_input(
+            "**trim_length_px:**  \n trim short branch less than this px",
+            value=int(st.session_state.cfg.trim_length_px),
+            step=1,
+        )
+    )
+
+with st.sidebar.expander("merge_nodes.py", expanded=False):
+    cfg.merge_short_seg_px = int(
+        st.number_input(
+            "**merge_short_seg_px:**  \n merge nodes this px close to each other",
+            value=int(st.session_state.cfg.merge_short_seg_px),
+            step=1,
+        )
+    )
+
+with st.sidebar.expander("Param for kink_cut.py", expanded=False):
+    cfg.threshold_of_nonlinear = float(
+        st.number_input(
+            "**threshold_of_nonlinear:**  \n L/D threshold for kink_cut condidate, where L: fiber length and D: edge distance",
+            value=float(st.session_state.cfg.threshold_of_nonlinear),
+            step=0.05 if sidebar_disabled else 0.01,
+            format="%.2f",
+        )
+    )
+    
+    cfg.blob_px = int(
+        st.number_input(
+            "**(arm_length_px):**  \n arms length to calcuate kink angle",
+            value=int(st.session_state.cfg.blob_px),
+            step=1,
+        )
+    )
+    
+    cfg.cut_max = int(
+        st.number_input(
+            "**(cut_max):** \n max times of kink_cut applied",
+            value=int(st.session_state.cfg.cut_max),
+            step=1,
+        )
+    )
+    
+    cfg.cut_angle = float(
+        st.number_input(
+            "**cut_angle:**  \n cut object at a kink over this angle in degree",
+            value=float(st.session_state.cfg.cut_angle),
+            step=1.0 if sidebar_disabled else 1.0,
+            format="%.0f" if sidebar_disabled else "%.0f",
+        )
+    )
+
+
+with st.sidebar.expander("pairing.py", expanded=False):
+    cfg.pairing_angle_max = float(
+        st.number_input(
+            "**pairing_angle_max:**  \n connect object joined below this angle in degree",
+            value=float(st.session_state.cfg.pairing_angle_max),
+            step=1.0 if sidebar_disabled else 1.0,
+            format="%.0f" if sidebar_disabled else "%.0f",
+        )
+    )
+    
+    cfg.pairing_length_for_calc_angle = int(
+        st.number_input(
+            "**(pairing_length_for_calc_angle_px):**  \n arm length to calculate angle",
+            value=int(st.session_state.cfg.pairing_length_for_calc_angle),
+            step=1,
+        )
+    )
+
+with st.sidebar.expander("measure_length.py", expanded=False):
+    cfg.top_cut = int(
+        st.number_input(
+            "**(top_cut_px):**  \n recude fiber length with this px at both end",
+            value=int(st.session_state.cfg.top_cut),
+            step=1,
+        )
+    )
+
+# ----------------------------
+# Sidebar: config downloader
+# ----------------------------
+st.sidebar.markdown("---")
+st.sidebar.write("Save settings")
+
+with tempfile.TemporaryDirectory() as td:
+    tmp_path = Path(td) / "cfg.json"
+    save_cfg_json(cfg, str(tmp_path))
+
+    json_bytes = tmp_path.read_bytes()
+
+st.sidebar.download_button(
+    label="save settings as .json",
+    data=json_bytes,
+    file_name = "fiber_length_analysis_config.json",
+    mime="application/json",
 )
 
-cfg.trim_length_px = int(
-    st.sidebar.number_input(
-        "**trim_length_px:**  \n trim short branch less than this px",
-        value=int(st.session_state.cfg.trim_length_px),
-        step=1,
-    )
-)
 
-cfg.merge_short_seg_px = int(
-    st.sidebar.number_input(
-        "**merge_short_seg_px:**  \n merge nodes this px close to each other",
-        value=int(st.session_state.cfg.merge_short_seg_px),
-        step=1,
-    )
-)
 
-cfg.threshold_of_nonlinear = float(
-    st.sidebar.number_input(
-        "**threshold_of_nonlinear:**  \n L/D threshold for kink_cut condidate, where L: fiber length and D: edge distance",
-        value=float(st.session_state.cfg.threshold_of_nonlinear),
-        step=0.05 if sidebar_disabled else 0.01,
-        format="%.2f",
-    )
-)
-
-cfg.blob_px = int(
-    st.sidebar.number_input(
-        "**(arm_length_px):**  \n arms length to calcuate kink angle",
-        value=int(st.session_state.cfg.blob_px),
-        step=1,
-    )
-)
-cfg.cut_max = int(
-    st.sidebar.number_input(
-        "**(cut_max):** \n max times of kink_cut applied",
-        value=int(st.session_state.cfg.cut_max),
-        step=1,
-    )
-)
-cfg.cut_angle = float(
-    st.sidebar.number_input(
-        "**cut_angle:**  \n cut object at a kink over this angle in degree",
-        value=float(st.session_state.cfg.cut_angle),
-        step=1.0 if sidebar_disabled else 1.0,
-        format="%.0f" if sidebar_disabled else "%.0f",
-    )
-)
-
-cfg.pairing_angle_max = float(
-    st.sidebar.number_input(
-        "**pairing_angle_max:**  \n connect object joined below this angle in degree",
-        value=float(st.session_state.cfg.pairing_angle_max),
-        step=1.0 if sidebar_disabled else 1.0,
-        format="%.0f" if sidebar_disabled else "%.0f",
-    )
-)
-cfg.pairing_length_for_calc_angle = int(
-    st.sidebar.number_input(
-        "**(pairing_length_for_calc_angle_px):**  \n arm length to calculate angle",
-        value=int(st.session_state.cfg.pairing_length_for_calc_angle),
-        step=1,
-    )
-)
-
-cfg.top_cut = int(
-    st.sidebar.number_input(
-        "**(top_cut_px):**  \n recude fiber length with this px at both end",
-        value=int(st.session_state.cfg.top_cut),
-        step=1,
-    )
-)
 # ----------------------------
 # Main: fixed layout placeholders (always rendered)
 # ----------------------------
@@ -440,9 +458,10 @@ with l2:
     st.write("Identified fibers")
     disp_img_05 = st.image(blank_rgb)
 
-st.markdown("---")
 
+st.markdown("---")
 st.subheader("Histogram (length-weighted)")
+
 hist_ph = st.empty()
 
 st.write("R table (length-weighted)")
@@ -456,6 +475,7 @@ counts_ph = st.empty()
 # If no file yet: keep placeholders and stop
 # ----------------------------
 if uploaded is None: st.stop()
+
 
 # ----------------------------
 # With file: prepare temp path
@@ -483,10 +503,10 @@ img_raw01, img_pre01, img_bin, threshold_otsu  = compute_upper(str(tmp_path), cf
 
 threshold_otsu_line_ph.write(f"threshold_otsu (recommended): {threshold_otsu:.3f}")
 
-# Initialize threshold from Otsu once per new image, then rerun so the sidebar reflects it.
-if st.session_state.threshold is None:
-    st.session_state.threshold = float(threshold_otsu - 0.02)
-    st.rerun()
+# # Initialize threshold from Otsu once per new image, then rerun so the sidebar reflects it.
+# if st.session_state.threshold is None:
+#     st.session_state.threshold = float(threshold_otsu - 0.02)
+#     st.rerun()
 
 img_bin = binarize(img_pre01, cfg.threshold)
 

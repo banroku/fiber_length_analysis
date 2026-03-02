@@ -51,7 +51,7 @@ class Config:
     top_cut: int = 1  # スケルトナイズにより実際より長く両端をカットする
 
     # ---- postprocess ----
-    post_eliminate_length_px: float = 5 # 最終的に短い繊維を除外する閾値(px)
+    post_eliminate_length_um: float = 50 # 最終的に短い繊維を除外する閾値(um)
 
     # ---- visualize result ----
     #hist_range: list = [0, 2000] # ヒストグラムの表示範囲
