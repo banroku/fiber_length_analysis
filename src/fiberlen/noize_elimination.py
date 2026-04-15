@@ -1,73 +1,58 @@
-# Path: src/fiberlen/noize_elimination.py
-
 from __future__ import annotations
 
-# import matplotlib.pyplot as plt
 import numpy as np
-# from skimage.morphology import remove_small_objects
-from skimage.morphology import remove_small_objects, binary_closing, disk
+import cv2
 
 
 def noize_elimination(img_binarized: np.ndarray, eliminate_length: int) -> np.ndarray:
     """
-    ノイズ除去（skimage.remove_small_objects）
+    ノイズ除去（OpenCV, 外接矩形の w/h ベース）
 
     方針：
-      連結成分の「面積（ピクセル数）」が小さいものを除去する。
+      連結成分ごとに外接矩形 (x, y, w, h) を求め、
+      w と h の両方が eliminate_length 未満の成分を除去する。
 
-    eliminate_length の解釈：
-      GUI/設定で「長さ(px)」として扱いやすいように、
-      min_size = eliminate_length**2（ピクセル数）を採用する。
-      例：eliminate_length=10 -> 面積 100 未満を除去
-
-      eliminate_length を「ピクセル数そのもの」にしたいなら、
-      min_size の行を min_size = int(eliminate_length) に変更すればよい。
+    判定条件：
+      keep if (w >= eliminate_length) or (h >= eliminate_length)
+      remove if (w < eliminate_length) and (h < eliminate_length)
 
     連結性：
-      8連結固定（2Dの connectivity=2）
+      8連結
 
     Parameters
     ----------
     img_binarized : bool or {0,1} ndarray
-        True が前景（繊維）
+        True/1 が前景（繊維）
     eliminate_length : int
-        ノイズ除去の強さ（長さっぽく指定）
+        除去しきい値 [px]
 
     Returns
     -------
     img_for_skeletonized : bool ndarray
     """
-#    bw = np.asarray(img_binarized)
-#    if bw.dtype != np.bool_:
-#        bw = bw != 0
-    bw = img_binarized
+    bw = np.asarray(img_binarized)
 
-#     # 追加：隙間埋め（クロージング）
-#     close_radius = 4  # ★後で引数に追加する
-#     r = int(close_radius)
-#     if r > 0:
-#         bw = binary_closing(bw, footprint=disk(r))
+    if bw.dtype != np.uint8:
+        bw_u8 = (bw != 0).astype(np.uint8)
+    else:
+        bw_u8 = (bw != 0).astype(np.uint8)
 
     elim = int(eliminate_length)
     if elim <= 0:
-        return bw.copy()
+        return (bw_u8 != 0)
 
-    min_size = elim * elim  # ←必要ならここを変更（面積ピクセル数）
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(bw_u8, connectivity=8)
 
-    # remove_small_objects は bool を返す
-    cleaned = remove_small_objects(bw, max_size=min_size, connectivity=2)
+    cleaned = np.zeros_like(bw_u8, dtype=np.uint8)
 
-#     fig, ax = plt.subplots(1, 2, figsize=(10, 4))
-#     ax[0].imshow(bw, cmap="gray", vmin=0, vmax=1)
-#     ax[0].set_title("Input (binary)")
-#     ax[0].axis("off")
-# 
-#     ax[1].imshow(cleaned, cmap="gray", vmin=0, vmax=1)
-#     ax[1].set_title(f"After noize_elimination (L={eliminate_length})")
-#     ax[1].axis("off")
-# 
-#     plt.tight_layout()
-#     plt.show()
+    # label 0 は背景なので 1 から開始
+    for label in range(1, num_labels):
+        x = stats[label, cv2.CC_STAT_LEFT]
+        y = stats[label, cv2.CC_STAT_TOP]
+        w = stats[label, cv2.CC_STAT_WIDTH]
+        h = stats[label, cv2.CC_STAT_HEIGHT]
 
+        if (w >= elim) or (h >= elim):
+            cleaned[labels == label] = 1
 
     return cleaned.astype(np.bool_, copy=False)

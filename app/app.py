@@ -118,7 +118,6 @@ def compute_lower_and_save(
     graph_kink = kink_cut(
         graph_nodes_merged,
         cfg.threshold_of_nonlinear,
-        cfg.blob_px,
         cfg.cut_max,
         cfg.cut_angle
     )
@@ -346,7 +345,7 @@ with st.sidebar.expander("merge_nodes.py", expanded=False):
         )
     )
 
-with st.sidebar.expander("Param for kink_cut.py", expanded=False):
+with st.sidebar.expander("kink_cut.py", expanded=False):
     cfg.threshold_of_nonlinear = float(
         st.number_input(
             "**threshold_of_nonlinear:**  \n L/D threshold for kink_cut condidate, where L: fiber length and D: edge distance",
@@ -356,14 +355,14 @@ with st.sidebar.expander("Param for kink_cut.py", expanded=False):
         )
     )
     
-    cfg.blob_px = int(
-        st.number_input(
-            "**(arm_length_px):**  \n arms length to calcuate kink angle",
-            value=int(st.session_state.cfg.blob_px),
-            step=1,
-        )
-    )
-    
+ #   cfg.blob_px = int(
+ #       st.number_input(
+ #           "**(arm_length_px):**  \n arms length to calcuate kink angle",
+ #           value=int(st.session_state.cfg.blob_px),
+ #           step=1,
+ #       )
+ #   )
+ #   
     cfg.cut_max = int(
         st.number_input(
             "**(cut_max):** \n max times of kink_cut applied",
@@ -440,7 +439,7 @@ st.subheader("Preprocess")
 u1, u2, u3 = st.columns(3)
 
 with u1:
-    st.write("Original (bg subtracted)")
+    st.write("BG subtracted")
     disp_img_01 = st.image(blank_gray)
 with u2:
     st.write("Binarized")
